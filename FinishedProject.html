@@ -1,0 +1,894 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stochastic Portfolio Simulator - Standalone</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .control-panel {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .control-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .control-item {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        label {
+            font-weight: 600;
+            color: #34495e;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+        
+        input[type="number"], select {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+            margin-top: 5px;
+        }
+        
+        .range-value {
+            text-align: center;
+            color: #3498db;
+            font-weight: 600;
+            margin-top: 5px;
+        }
+        
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: background-color 0.3s;
+        }
+        
+        button:hover {
+            background-color: #2980b9;
+        }
+        
+        button:active {
+            transform: translateY(1px);
+        }
+        
+        .export-btn {
+            background-color: #27ae60;
+            margin-left: 10px;
+        }
+        
+        .export-btn:hover {
+            background-color: #229954;
+        }
+        
+        .chart-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        canvas {
+            border: 1px solid #ddd;
+            width: 100%;
+            max-width: 100%;
+        }
+        
+        .stats-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .stat-box {
+            background: #ecf0f1;
+            padding: 15px;
+            border-radius: 4px;
+            text-align: center;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: #7f8c8d;
+            margin-bottom: 5px;
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        .model-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .model-btn {
+            padding: 8px 16px;
+            background-color: #ecf0f1;
+            border: 2px solid #bdc3c7;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .model-btn.active {
+            background-color: #3498db;
+            color: white;
+            border-color: #3498db;
+        }
+        
+        .legend {
+            margin-top: 10px;
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .legend-color {
+            width: 20px;
+            height: 3px;
+            background-color: #000;
+        }
+        
+        .info-box {
+            background-color: #e8f4f8;
+            border-left: 4px solid #3498db;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .validation-error {
+            color: #e74c3c;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+        
+        @media (max-width: 768px) {
+            .control-group {
+                grid-template-columns: 1fr;
+            }
+            
+            .stats-container {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            canvas {
+                height: 300px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Stochastic Portfolio Simulator</h1>
+        <p style="text-align: center; color: #7f8c8d;">Self-contained version with no external dependencies</p>
+        
+        <div class="control-panel">
+            <h2>Stock Price Simulation</h2>
+            
+            <div class="model-selector">
+                <button class="model-btn active" onclick="selectModel('gbm')">Geometric Brownian Motion</button>
+                <button class="model-btn" onclick="selectModel('jump')">Jump Diffusion</button>
+                <button class="model-btn" onclick="selectModel('heston')">Heston Model</button>
+            </div>
+            
+            <div class="control-group">
+                <div class="control-item">
+                    <label>Initial Price ($)</label>
+                    <input type="number" id="s0" value="100" min="1" max="1000">
+                </div>
+                <div class="control-item">
+                    <label>Expected Return (μ)</label>
+                    <input type="range" id="mu" min="-0.5" max="0.5" step="0.01" value="0.10">
+                    <div class="range-value" id="mu-value">10%</div>
+                </div>
+                <div class="control-item">
+                    <label>Volatility (σ)</label>
+                    <input type="range" id="sigma" min="0" max="1" step="0.01" value="0.25">
+                    <div class="range-value" id="sigma-value">25%</div>
+                </div>
+                <div class="control-item">
+                    <label>Time Horizon (years)</label>
+                    <input type="number" id="time" value="1" min="0.1" max="10" step="0.1">
+                </div>
+                <div class="control-item">
+                    <label>Number of Paths</label>
+                    <input type="number" id="paths" value="5" min="1" max="20">
+                </div>
+            </div>
+            
+            <button onclick="simulate()">Simulate</button>
+            <button class="export-btn" onclick="exportSimulationData()">Export Data (CSV)</button>
+            
+            <div class="info-box">
+                <strong>Model Descriptions:</strong><br>
+                • <strong>GBM</strong>: Standard model assuming constant volatility<br>
+                • <strong>Jump Diffusion</strong>: Includes sudden price jumps (crashes/rallies)<br>
+                • <strong>Heston</strong>: Volatility changes over time (more realistic)
+            </div>
+        </div>
+        
+        <div class="chart-container">
+            <h3>Stock Price Paths</h3>
+            <canvas id="priceChart" width="800" height="400"></canvas>
+            <div class="legend" id="priceLegend"></div>
+        </div>
+        
+        <div class="control-panel">
+            <h3>Simulation Statistics</h3>
+            <div class="stats-container">
+                <div class="stat-box">
+                    <div class="stat-label">Expected Final Value</div>
+                    <div class="stat-value" id="expected-value">-</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Average Simulated</div>
+                    <div class="stat-value" id="avg-value">-</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Realized Volatility</div>
+                    <div class="stat-value" id="volatility">-</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">95% CI (Mean)</div>
+                    <div class="stat-value" id="confidence">-</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="control-panel">
+            <h2>Portfolio Optimization</h2>
+            <p>Create a two-asset portfolio and see the benefits of diversification</p>
+            
+            <div class="control-group">
+                <div class="control-item">
+                    <label>Stock Allocation</label>
+                    <input type="range" id="w-stock" min="0" max="1" step="0.05" value="0.6">
+                    <div class="range-value" id="w-stock-value">60%</div>
+                </div>
+                <div class="control-item">
+                    <label>Bond Allocation</label>
+                    <input type="range" id="w-bond" min="0" max="1" step="0.05" value="0.4">
+                    <div class="range-value" id="w-bond-value">40%</div>
+                </div>
+                <div class="control-item">
+                    <label>Correlation</label>
+                    <input type="range" id="correlation" min="-1" max="1" step="0.1" value="0.2">
+                    <div class="range-value" id="correlation-value">0.2</div>
+                </div>
+            </div>
+            
+            <button onclick="simulatePortfolio()">Simulate Portfolio</button>
+            <button class="export-btn" onclick="exportPortfolioData()">Export Portfolio Data</button>
+            
+            <div class="info-box">
+                <strong>Statistical Assumptions:</strong><br>
+                • Returns are log-normally distributed<br>
+                • Markets are efficient (no arbitrage)<br>
+                • Correlation between assets is constant<br>
+                • No transaction costs or taxes
+            </div>
+        </div>
+        
+        <div class="chart-container">
+            <h3>Portfolio Performance</h3>
+            <canvas id="portfolioChart" width="800" height="400"></canvas>
+            <div class="legend" id="portfolioLegend"></div>
+        </div>
+    </div>
+    
+    <script>
+        // Global variables
+        let currentModel = 'gbm';
+        let lastSimulationData = null;
+        let lastPortfolioData = null;
+        
+        // Chart drawing class
+        class SimpleChart {
+            constructor(canvasId) {
+                this.canvas = document.getElementById(canvasId);
+                this.ctx = this.canvas.getContext('2d');
+                this.width = this.canvas.width;
+                this.height = this.canvas.height;
+                this.margin = {top: 40, right: 40, bottom: 60, left: 80};
+                this.plotWidth = this.width - this.margin.left - this.margin.right;
+                this.plotHeight = this.height - this.margin.top - this.margin.bottom;
+            }
+            
+            clear() {
+                this.ctx.clearRect(0, 0, this.width, this.height);
+            }
+            
+            drawAxes(xLabel, yLabel, xMin, xMax, yMin, yMax) {
+                const ctx = this.ctx;
+                ctx.strokeStyle = '#333';
+                ctx.lineWidth = 2;
+                
+                // Draw axes
+                ctx.beginPath();
+                ctx.moveTo(this.margin.left, this.margin.top);
+                ctx.lineTo(this.margin.left, this.height - this.margin.bottom);
+                ctx.lineTo(this.width - this.margin.right, this.height - this.margin.bottom);
+                ctx.stroke();
+                
+                // Labels
+                ctx.fillStyle = '#333';
+                ctx.font = '14px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(xLabel, this.width / 2, this.height - 20);
+                
+                ctx.save();
+                ctx.translate(20, this.height / 2);
+                ctx.rotate(-Math.PI / 2);
+                ctx.fillText(yLabel, 0, 0);
+                ctx.restore();
+                
+                // Ticks and grid
+                ctx.strokeStyle = '#ddd';
+                ctx.lineWidth = 1;
+                ctx.font = '12px Arial';
+                
+                // X-axis ticks
+                const xTicks = 5;
+                for (let i = 0; i <= xTicks; i++) {
+                    const x = this.margin.left + (i / xTicks) * this.plotWidth;
+                    const value = xMin + (i / xTicks) * (xMax - xMin);
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(x, this.height - this.margin.bottom);
+                    ctx.lineTo(x, this.margin.top);
+                    ctx.stroke();
+                    
+                    ctx.fillStyle = '#666';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(value.toFixed(1), x, this.height - this.margin.bottom + 20);
+                }
+                
+                // Y-axis ticks
+                const yTicks = 5;
+                for (let i = 0; i <= yTicks; i++) {
+                    const y = this.height - this.margin.bottom - (i / yTicks) * this.plotHeight;
+                    const value = yMin + (i / yTicks) * (yMax - yMin);
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(this.margin.left, y);
+                    ctx.lineTo(this.width - this.margin.right, y);
+                    ctx.stroke();
+                    
+                    ctx.fillStyle = '#666';
+                    ctx.textAlign = 'right';
+                    ctx.fillText(value.toFixed(0), this.margin.left - 10, y + 5);
+                }
+                
+                this.xScale = (x) => this.margin.left + ((x - xMin) / (xMax - xMin)) * this.plotWidth;
+                this.yScale = (y) => this.height - this.margin.bottom - ((y - yMin) / (yMax - yMin)) * this.plotHeight;
+            }
+            
+            drawLine(xData, yData, color, width = 2, dashed = false) {
+                const ctx = this.ctx;
+                ctx.strokeStyle = color;
+                ctx.lineWidth = width;
+                
+                if (dashed) {
+                    ctx.setLineDash([5, 5]);
+                }
+                
+                ctx.beginPath();
+                for (let i = 0; i < xData.length; i++) {
+                    const x = this.xScale(xData[i]);
+                    const y = this.yScale(yData[i]);
+                    
+                    if (i === 0) {
+                        ctx.moveTo(x, y);
+                    } else {
+                        ctx.lineTo(x, y);
+                    }
+                }
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+            
+            drawTitle(title) {
+                const ctx = this.ctx;
+                ctx.fillStyle = '#333';
+                ctx.font = 'bold 16px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(title, this.width / 2, 25);
+            }
+        }
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            // Setup event listeners
+            const rangeInputs = document.querySelectorAll('input[type="range"]');
+            rangeInputs.forEach(input => {
+                input.addEventListener('input', function() {
+                    updateRangeValue(this);
+                });
+                updateRangeValue(input);
+            });
+            
+            // Weight normalization
+            document.getElementById('w-stock').addEventListener('input', function() {
+                const stockWeight = parseFloat(this.value);
+                document.getElementById('w-bond').value = (1 - stockWeight).toFixed(2);
+                updateRangeValue(document.getElementById('w-bond'));
+            });
+            
+            document.getElementById('w-bond').addEventListener('input', function() {
+                const bondWeight = parseFloat(this.value);
+                document.getElementById('w-stock').value = (1 - bondWeight).toFixed(2);
+                updateRangeValue(document.getElementById('w-stock'));
+            });
+            
+            // Initial simulation
+            simulate();
+        });
+        
+        function updateRangeValue(input) {
+            const valueDiv = document.getElementById(input.id + '-value');
+            if (valueDiv) {
+                const value = parseFloat(input.value);
+                if (input.id.includes('mu') || input.id.includes('sigma') || input.id.includes('w-')) {
+                    valueDiv.textContent = (value * 100).toFixed(0) + '%';
+                } else if (input.id === 'correlation') {
+                    valueDiv.textContent = value.toFixed(1);
+                } else {
+                    valueDiv.textContent = value.toFixed(2);
+                }
+            }
+        }
+        
+        function selectModel(model) {
+            currentModel = model;
+            document.querySelectorAll('.model-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+        }
+        
+        // Random number generators
+        function normalRandom() {
+            let u = 0, v = 0;
+            while (u === 0) u = Math.random();
+            while (v === 0) v = Math.random();
+            return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+        }
+        
+        // Simulation functions
+        function simulateGBM(S0, mu, sigma, T, steps) {
+            const dt = T / steps;
+            const times = Array.from({length: steps + 1}, (_, i) => i * dt);
+            const prices = [S0];
+            
+            for (let i = 0; i < steps; i++) {
+                const dW = Math.sqrt(dt) * normalRandom();
+                const dS = prices[i] * (mu * dt + sigma * dW);
+                prices.push(prices[i] + dS);
+            }
+            
+            return {times, prices};
+        }
+        
+        function simulateJumpDiffusion(S0, mu, sigma, T, steps) {
+            const dt = T / steps;
+            const times = Array.from({length: steps + 1}, (_, i) => i * dt);
+            const logPrices = [Math.log(S0)];
+            
+            const lambda = 3; // jumps per year
+            const mu_jump = -0.02; // average jump size
+            const sigma_jump = 0.03;
+            const k = Math.exp(mu_jump + 0.5 * sigma_jump * sigma_jump) - 1;
+            
+            for (let i = 0; i < steps; i++) {
+                const dW = Math.sqrt(dt) * normalRandom();
+                let jump = 0;
+                
+                // Poisson process for jumps
+                if (Math.random() < lambda * dt) {
+                    jump = normalRandom() * sigma_jump + mu_jump;
+                }
+                
+                const drift = (mu - lambda * k - 0.5 * sigma * sigma) * dt;
+                logPrices.push(logPrices[i] + drift + sigma * dW + jump);
+            }
+            
+            return {
+                times, 
+                prices: logPrices.map(lp => Math.exp(lp))
+            };
+        }
+        
+        function simulateHeston(S0, mu, sigma, T, steps) {
+            const dt = T / steps;
+            const times = Array.from({length: steps + 1}, (_, i) => i * dt);
+            const prices = [S0];
+            const vols = [sigma * sigma];
+            
+            // Heston parameters
+            const kappa = 2.0;
+            const theta = sigma * sigma;
+            const sigma_v = 0.3;
+            const rho = -0.7;
+            
+            for (let i = 0; i < steps; i++) {
+                // Generate correlated random numbers
+                const z1 = normalRandom();
+                const z2 = normalRandom();
+                const w1 = z1;
+                const w2 = rho * z1 + Math.sqrt(1 - rho * rho) * z2;
+                
+                // Update volatility
+                const v_curr = Math.max(vols[i], 0.0001);
+                const dv = kappa * (theta - v_curr) * dt + sigma_v * Math.sqrt(v_curr * dt) * w2;
+                vols.push(Math.max(v_curr + dv, 0.0001));
+                
+                // Update price
+                const dS = prices[i] * (mu * dt + Math.sqrt(v_curr * dt) * w1);
+                prices.push(prices[i] + dS);
+            }
+            
+            return {times, prices, vols};
+        }
+        
+        function simulate() {
+            // Input validation
+            const S0 = parseFloat(document.getElementById('s0').value);
+            const mu = parseFloat(document.getElementById('mu').value);
+            const sigma = parseFloat(document.getElementById('sigma').value);
+            const T = parseFloat(document.getElementById('time').value);
+            const nPaths = parseInt(document.getElementById('paths').value);
+            
+            // Validate inputs
+            if (S0 <= 0 || isNaN(S0)) {
+                alert('Initial price must be positive');
+                return;
+            }
+            if (sigma < 0 || isNaN(sigma)) {
+                alert('Volatility cannot be negative');
+                return;
+            }
+            if (T <= 0 || isNaN(T)) {
+                alert('Time horizon must be positive');
+                return;
+            }
+            if (nPaths < 1 || nPaths > 20 || isNaN(nPaths)) {
+                alert('Number of paths must be between 1 and 20');
+                return;
+            }
+            
+            const steps = Math.min(252 * T, 1000); // Limit steps for performance
+            
+            const chart = new SimpleChart('priceChart');
+            chart.clear();
+            
+            // Generate paths
+            const paths = [];
+            let yMin = Infinity, yMax = -Infinity;
+            
+            for (let p = 0; p < nPaths; p++) {
+                let result;
+                if (currentModel === 'gbm') {
+                    result = simulateGBM(S0, mu, sigma, T, steps);
+                } else if (currentModel === 'jump') {
+                    result = simulateJumpDiffusion(S0, mu, sigma, T, steps);
+                } else {
+                    result = simulateHeston(S0, mu, sigma, T, steps);
+                }
+                
+                paths.push(result);
+                yMin = Math.min(yMin, Math.min(...result.prices));
+                yMax = Math.max(yMax, Math.max(...result.prices));
+            }
+            
+            // Store data for export
+            lastSimulationData = {
+                model: currentModel,
+                parameters: {S0, mu, sigma, T, nPaths},
+                paths: paths
+            };
+            
+            // Add margin to y-axis
+            const yMargin = (yMax - yMin) * 0.1;
+            yMin -= yMargin;
+            yMax += yMargin;
+            
+            // Draw axes
+            chart.drawAxes('Time (years)', 'Stock Price ($)', 0, T, yMin, yMax);
+            
+            // Model-specific title
+            let modelName = '';
+            if (currentModel === 'gbm') {
+                modelName = 'Geometric Brownian Motion (GBM)';
+            } else if (currentModel === 'jump') {
+                modelName = 'Merton Jump Diffusion';
+            } else {
+                modelName = 'Heston Stochastic Volatility';
+            }
+            chart.drawTitle(`${modelName} - Stock Price Simulation`);
+            
+            // Draw paths
+            const colors = ['#3498db', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c', '#34495e'];
+            const legendHTML = [];
+            
+            paths.forEach((path, i) => {
+                const color = colors[i % colors.length];
+                chart.drawLine(path.times, path.prices, color, 2);
+                legendHTML.push(`<div class="legend-item"><div class="legend-color" style="background-color: ${color}"></div><span>Path ${i + 1}</span></div>`);
+            });
+            
+            // Draw expected value line
+            const expectedTimes = paths[0].times;
+            const expectedPrices = expectedTimes.map(t => S0 * Math.exp(mu * t));
+            chart.drawLine(expectedTimes, expectedPrices, '#e74c3c', 3, true);
+            legendHTML.push(`<div class="legend-item"><div class="legend-color" style="background-color: #e74c3c; border: 1px dashed #e74c3c; background: none;"></div><span>Expected Value (drift only)</span></div>`);
+            
+            document.getElementById('priceLegend').innerHTML = legendHTML.join('');
+            
+            // Update statistics with corrected labels
+            const finalPrices = paths.map(p => p.prices[p.prices.length - 1]);
+            const avgFinal = finalPrices.reduce((a, b) => a + b) / finalPrices.length;
+            const expectedFinal = S0 * Math.exp(mu * T);
+            
+            // Calculate standard deviation of final prices
+            const variance = finalPrices.reduce((sum, price) => sum + Math.pow(price - avgFinal, 2), 0) / finalPrices.length;
+            const stdDev = Math.sqrt(variance);
+            
+            document.getElementById('expected-value').textContent = `${expectedFinal.toFixed(2)}`;
+            document.getElementById('avg-value').textContent = `${avgFinal.toFixed(2)}`;
+            document.getElementById('volatility').textContent = `${(stdDev / avgFinal * 100).toFixed(1)}%`;
+            document.getElementById('confidence').textContent = `±${(1.96 * stdDev / Math.sqrt(nPaths)).toFixed(2)}`;
+        }
+        
+        function simulatePortfolio() {
+            const stockWeight = parseFloat(document.getElementById('w-stock').value);
+            const bondWeight = parseFloat(document.getElementById('w-bond').value);
+            const correlation = parseFloat(document.getElementById('correlation').value);
+            
+            // Asset parameters
+            const stockMu = 0.10;
+            const stockSigma = 0.20;
+            const bondMu = 0.04;
+            const bondSigma = 0.05;
+            
+            const T = 1;
+            const steps = 252;
+            const dt = T / steps;
+            const times = Array.from({length: steps + 1}, (_, i) => i * dt);
+            
+            // Portfolio statistics
+            const portMu = stockWeight * stockMu + bondWeight * bondMu;
+            const portVariance = stockWeight * stockWeight * stockSigma * stockSigma +
+                               bondWeight * bondWeight * bondSigma * bondSigma +
+                               2 * stockWeight * bondWeight * stockSigma * bondSigma * correlation;
+            const portSigma = Math.sqrt(portVariance);
+            
+            // Simulate multiple scenarios
+            const nScenarios = 100;
+            const scenarios = [];
+            
+            for (let s = 0; s < nScenarios; s++) {
+                const values = [100];
+                
+                for (let i = 0; i < steps; i++) {
+                    const z1 = normalRandom();
+                    const z2 = normalRandom();
+                    const w1 = z1;
+                    const w2 = correlation * z1 + Math.sqrt(1 - correlation * correlation) * z2;
+                    
+                    const stockReturn = (stockMu - 0.5 * stockSigma * stockSigma) * dt + stockSigma * Math.sqrt(dt) * w1;
+                    const bondReturn = (bondMu - 0.5 * bondSigma * bondSigma) * dt + bondSigma * Math.sqrt(dt) * w2;
+                    
+                    const portfolioReturn = stockWeight * stockReturn + bondWeight * bondReturn;
+                    values.push(values[i] * Math.exp(portfolioReturn));
+                }
+                
+                scenarios.push(values);
+            }
+            
+            // Calculate percentiles
+            const percentiles = times.map((_, i) => {
+                const valuesAtTime = scenarios.map(s => s[i]).sort((a, b) => a - b);
+                return {
+                    p5: valuesAtTime[Math.floor(0.05 * valuesAtTime.length)],
+                    p50: valuesAtTime[Math.floor(0.50 * valuesAtTime.length)],
+                    p95: valuesAtTime[Math.floor(0.95 * valuesAtTime.length)],
+                    mean: valuesAtTime.reduce((a, b) => a + b) / valuesAtTime.length
+                };
+            });
+            
+            // Store data for export
+            lastPortfolioData = {
+                weights: {stock: stockWeight, bond: bondWeight},
+                parameters: {stockMu, stockSigma, bondMu, bondSigma, correlation, T},
+                scenarios: scenarios,
+                percentiles: percentiles
+            };
+            
+            // Draw chart
+            const chart = new SimpleChart('portfolioChart');
+            chart.clear();
+            
+            const yMin = Math.min(...percentiles.map(p => p.p5)) * 0.95;
+            const yMax = Math.max(...percentiles.map(p => p.p95)) * 1.05;
+            
+            chart.drawAxes('Time (years)', 'Portfolio Value ($)', 0, T, yMin, yMax);
+            chart.drawTitle(`Portfolio: ${(stockWeight*100).toFixed(0)}% Stocks, ${(bondWeight*100).toFixed(0)}% Bonds (ρ=${correlation})`);
+            
+            // Draw percentile bands
+            chart.drawLine(times, percentiles.map(p => p.p95), '#2ecc71', 2, true);
+            chart.drawLine(times, percentiles.map(p => p.mean), '#3498db', 3);
+            chart.drawLine(times, percentiles.map(p => p.p5), '#e74c3c', 2, true);
+            
+            // Draw expected value
+            const expectedValues = times.map(t => 100 * Math.exp(portMu * t));
+            chart.drawLine(times, expectedValues, '#f39c12', 2, true);
+            
+            // Update legend
+            const legendHTML = [
+                '<div class="legend-item"><div class="legend-color" style="background-color: #2ecc71; border: 1px dashed #2ecc71; background: none;"></div><span>95th Percentile</span></div>',
+                '<div class="legend-item"><div class="legend-color" style="background-color: #3498db"></div><span>Mean</span></div>',
+                '<div class="legend-item"><div class="legend-color" style="background-color: #e74c3c; border: 1px dashed #e74c3c; background: none;"></div><span>5th Percentile</span></div>',
+                '<div class="legend-item"><div class="legend-color" style="background-color: #f39c12; border: 1px dashed #f39c12; background: none;"></div><span>Expected (Theory)</span></div>'
+            ];
+            document.getElementById('portfolioLegend').innerHTML = legendHTML.join('');
+        }
+        
+        // Export functions
+        function exportSimulationData() {
+            if (!lastSimulationData) {
+                alert('Please run a simulation first');
+                return;
+            }
+            
+            const data = lastSimulationData;
+            let csv = 'Stochastic Portfolio Simulation Export\n';
+            csv += `Model,${data.model.toUpperCase()}\n`;
+            csv += `Initial Price,${data.parameters.S0}\n`;
+            csv += `Expected Return (mu),${data.parameters.mu}\n`;
+            csv += `Volatility (sigma),${data.parameters.sigma}\n`;
+            csv += `Time Horizon,${data.parameters.T}\n`;
+            csv += `Number of Paths,${data.parameters.nPaths}\n\n`;
+            
+            // Add time series data
+            csv += 'Time';
+            for (let i = 0; i < data.paths.length; i++) {
+                csv += `,Path ${i + 1}`;
+            }
+            csv += ',Expected Value\n';
+            
+            // Add data rows
+            for (let t = 0; t < data.paths[0].times.length; t++) {
+                csv += data.paths[0].times[t].toFixed(4);
+                for (let p = 0; p < data.paths.length; p++) {
+                    csv += ',' + data.paths[p].prices[t].toFixed(2);
+                }
+                // Add expected value
+                csv += ',' + (data.parameters.S0 * Math.exp(data.parameters.mu * data.paths[0].times[t])).toFixed(2);
+                csv += '\n';
+            }
+            
+            // Download
+            downloadCSV(csv, `simulation_${data.model}_${new Date().toISOString().slice(0,10)}.csv`);
+        }
+        
+        function exportPortfolioData() {
+            if (!lastPortfolioData) {
+                alert('Please run a portfolio simulation first');
+                return;
+            }
+            
+            const data = lastPortfolioData;
+            let csv = 'Portfolio Simulation Export\n';
+            csv += `Stock Weight,${(data.weights.stock * 100).toFixed(1)}%\n`;
+            csv += `Bond Weight,${(data.weights.bond * 100).toFixed(1)}%\n`;
+            csv += `Stock Return,${data.parameters.stockMu}\n`;
+            csv += `Stock Volatility,${data.parameters.stockSigma}\n`;
+            csv += `Bond Return,${data.parameters.bondMu}\n`;
+            csv += `Bond Volatility,${data.parameters.bondSigma}\n`;
+            csv += `Correlation,${data.parameters.correlation}\n\n`;
+            
+            // Add percentile data
+            csv += 'Time,5th Percentile,Mean,Median,95th Percentile\n';
+            
+            const times = Array.from({length: data.percentiles.length}, (_, i) => i * data.parameters.T / (data.percentiles.length - 1));
+            
+            for (let i = 0; i < data.percentiles.length; i++) {
+                csv += times[i].toFixed(4);
+                csv += ',' + data.percentiles[i].p5.toFixed(2);
+                csv += ',' + data.percentiles[i].mean.toFixed(2);
+                csv += ',' + data.percentiles[i].p50.toFixed(2);
+                csv += ',' + data.percentiles[i].p95.toFixed(2);
+                csv += '\n';
+            }
+            
+            // Add scenario data
+            csv += '\n\nScenario Data\n';
+            csv += 'Scenario';
+            for (let t = 0; t < times.length; t += Math.floor(times.length / 20)) { // Sample 20 time points
+                csv += ',t=' + times[t].toFixed(2);
+            }
+            csv += '\n';
+            
+            // Add first 10 scenarios
+            for (let s = 0; s < Math.min(10, data.scenarios.length); s++) {
+                csv += `Scenario ${s + 1}`;
+                for (let t = 0; t < times.length; t += Math.floor(times.length / 20)) {
+                    csv += ',' + data.scenarios[s][t].toFixed(2);
+                }
+                csv += '\n';
+            }
+            
+            downloadCSV(csv, `portfolio_simulation_${new Date().toISOString().slice(0,10)}.csv`);
+        }
+        
+        function downloadCSV(content, filename) {
+            const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            
+            if (navigator.msSaveBlob) { // IE 10+
+                navigator.msSaveBlob(blob, filename);
+            } else {
+                link.href = URL.createObjectURL(blob);
+                link.download = filename;
+                link.style.display = 'none';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+        }
+    </script>
+</body>
+</html>
